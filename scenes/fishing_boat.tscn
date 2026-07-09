@@ -1,0 +1,102 @@
+[gd_scene load_steps=10 format=3 uid="uid://cv3k1yunc5rt0"]
+
+[ext_resource type="Script" uid="uid://i77wom8i5td3" path="res://scripts/fishing_boat.gd" id="1_boat"]
+[ext_resource type="Script" uid="uid://cq4einn6nftcp" path="res://water/water_buoyancy_sensor.gd" id="2_sensor"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hull"]
+size = Vector3(2.2, 0.7, 4.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hull"]
+albedo_color = Color(0.48, 0.12, 0.08, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_hull"]
+size = Vector3(2.2, 0.58, 4.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cabin"]
+albedo_color = Color(0.72, 0.66, 0.52, 1)
+roughness = 0.86
+
+[sub_resource type="BoxMesh" id="BoxMesh_cabin"]
+size = Vector3(1.05, 0.72, 1.1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sensor"]
+albedo_color = Color(0.1, 0.7, 0.9, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_sensor"]
+radius = 0.08
+height = 0.16
+radial_segments = 8
+rings = 4
+
+[node name="FishingBoat" type="RigidBody3D"]
+mass = 1250.0
+can_sleep = false
+continuous_cd = true
+script = ExtResource("1_boat")
+buoyancy_multiplier = 715.0
+buoyancy_power = 1.25
+submerged_drag_linear = 0.04
+submerged_drag_angular = 0.035
+angular_water_damping = 0.035
+
+[node name="HullCollision" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_hull")
+
+[node name="HullVisual" type="MeshInstance3D" parent="."]
+material_override = SubResource("StandardMaterial3D_hull")
+mesh = SubResource("BoxMesh_hull")
+
+[node name="CabinVisual" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, 0.65)
+material_override = SubResource("StandardMaterial3D_cabin")
+mesh = SubResource("BoxMesh_cabin")
+
+[node name="LookTarget" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, -0.7)
+
+[node name="ChaseCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1, 8)
+fov = 67.0
+far = 260.0
+
+[node name="BowPort" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, -0.42, -1.75)
+script = ExtResource("2_sensor")
+height = 0.9
+buoyancy_multiplier = 1.15
+
+[node name="SensorDebug" type="MeshInstance3D" parent="BowPort"]
+visible = false
+material_override = SubResource("StandardMaterial3D_sensor")
+mesh = SubResource("SphereMesh_sensor")
+
+[node name="BowStarboard" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, -0.42, -1.75)
+script = ExtResource("2_sensor")
+height = 0.9
+buoyancy_multiplier = 1.15
+
+[node name="MidPort" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, -0.45, 0.05)
+script = ExtResource("2_sensor")
+height = 0.9
+debug_water_gap = true
+
+[node name="MidStarboard" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, -0.45, 0.05)
+script = ExtResource("2_sensor")
+height = 0.9
+debug_water_gap = true
+
+[node name="SternPort" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, -0.4, 1.85)
+script = ExtResource("2_sensor")
+height = 0.9
+buoyancy_multiplier = 0.95
+
+[node name="SternStarboard" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, -0.4, 1.85)
+script = ExtResource("2_sensor")
+height = 0.9
+buoyancy_multiplier = 0.95

@@ -1,0 +1,56 @@
+[gd_scene load_steps=6 format=3 uid="uid://d2rcslwgwftan"]
+
+[ext_resource type="Script" uid="uid://buuv5cuiuaxlg" path="res://water/buoyant_body3d.gd" id="1_miksy"]
+[ext_resource type="Material" uid="uid://dylmbfcmmn0vr" path="res://interactables/objects/buoy/buoy_material.tres" id="2_miksy"]
+[ext_resource type="ArrayMesh" uid="uid://bo5qky8crp2xp" path="res://interactables/objects/buoy/buoy.obj" id="3_h5kff"]
+[ext_resource type="Script" uid="uid://cq4einn6nftcp" path="res://water/water_buoyancy_sensor.gd" id="5_lv0ef"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_lv0ef"]
+radius = 1.2737
+height = 4.34359
+
+[node name="Buoy" type="RigidBody3D"]
+mass = 240.0
+center_of_mass_mode = 1
+center_of_mass = Vector3(0, -0.6, 0)
+script = ExtResource("1_miksy")
+buoyancy_multiplier = 130.0
+buoyancy_power = 1.35
+submerged_drag_linear = 0.06
+submerged_drag_angular = 0.03
+upright_strength = 1.5
+upright_damping = 0.35
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, 0, 0, 0)
+material_override = ExtResource("2_miksy")
+mesh = ExtResource("3_h5kff")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00217592, 0.9603418, 0.00198319)
+shape = SubResource("CapsuleShape3D_lv0ef")
+
+[node name="Sensor" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.05, -1, -1.05)
+script = ExtResource("5_lv0ef")
+height = 1.2
+
+[node name="Sensor5" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.35, 0)
+script = ExtResource("5_lv0ef")
+height = 1.1
+
+[node name="Sensor2" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, -1, -1.05)
+script = ExtResource("5_lv0ef")
+height = 1.2
+
+[node name="Sensor3" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.05, -1, 1.05)
+script = ExtResource("5_lv0ef")
+height = 1.2
+
+[node name="Sensor4" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, -1, 1.05)
+script = ExtResource("5_lv0ef")
+height = 1.2
