@@ -4,29 +4,34 @@ extends BuoyantBody3D
 const WATTS_PER_HORSEPOWER: float = 745.7
 
 @export_group("Engine")
-@export var engine_horsepower: float = 135.0
-@export var engine_torque: float = 360.0
-@export var torque_to_thrust: float = 58.0
+@export var engine_horsepower: float = 450.0
+@export var engine_torque: float = 450.0
+@export var torque_to_thrust: float = 42.0
 @export var min_power_speed: float = 1.7
 @export var reverse_efficiency: float = 0.55
 @export var throttle_response: float = 2.2
 @export var throttle_return_response: float = 3.0
 
 @export_group("Prop")
-@export var prop_efficiency: float = 0.72
+@export var prop_efficiency: float = 0.66
 @export var prop_pitch: float = 1.0
 
 @export_group("Hull")
-@export var hull_forward_drag: float = 28.0
-@export var hull_lateral_drag: float = 62.0
-@export var linear_water_damping: float = 0.05
-@export var angular_water_damping: float = 0.08
+@export var center_of_mass_offset: Vector3 = Vector3(0.0, -0.75, 0.15)
+@export var hull_forward_drag: float = 55.0
+@export var hull_lateral_drag: float = 85.0
+@export var bow_wave_impact_drag: float = 650.0
+@export var bow_wave_impact_z: float = -0.6
+@export var bow_wave_impact_local_offset: Vector3 = Vector3(0.0, -0.2, -1.65)
+@export var roll_pitch_water_damping: float = 4.0
+@export var yaw_water_damping: float = 1.2
 
 @export_group("Steering")
-@export var rudder_force: float = 7600.0
+@export var rudder_force: float = 5600.0
 @export var rudder_local_position: Vector3 = Vector3(0.0, -0.25, 2.15)
 @export var rudder_response: float = 1.25
 @export var rudder_return_response: float = 0.85
+@export var rudder_reverse_speed_threshold: float = 0.35
 
 @export_group("Camera")
 @export var camera_distance: float = 8.0
@@ -46,7 +51,7 @@ var current_rudder: float = 0.0
 func _ready() -> void:
 	super._ready()
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	center_of_mass = Vector3(0.0, -0.45, 0.1)
+	center_of_mass = center_of_mass_offset
 	chase_camera.current = true
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -58,7 +63,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	_apply_controls(delta)
-	_apply_soft_damping(delta)
+	_apply_angular_water_damping(delta)
 	_update_camera()
 
 func _apply_controls(delta: float) -> void:
@@ -75,10 +80,12 @@ func _apply_controls(delta: float) -> void:
 	var propulsion_force: float = _calculate_propulsion_force(current_throttle, forward_speed)
 	apply_central_force(forward * propulsion_force)
 	_apply_hull_resistance(forward, right)
+	_apply_bow_wave_impact_resistance(forward, forward_speed)
 
 	var speed_factor: float = clampf(linear_velocity.length() / 9.0, 0.08, 1.0)
 	var rudder_world_offset: Vector3 = global_transform.basis * rudder_local_position
-	apply_force(right * current_rudder * rudder_force * speed_factor, rudder_world_offset)
+	var rudder_flow_sign: float = _get_rudder_flow_sign(forward_speed)
+	apply_force(right * current_rudder * rudder_flow_sign * rudder_force * speed_factor, rudder_world_offset)
 
 func _calculate_propulsion_force(throttle: float, forward_speed: float) -> float:
 	if is_zero_approx(throttle):
@@ -96,6 +103,13 @@ func _calculate_propulsion_force(throttle: float, forward_speed: float) -> float
 
 	return available_force * prop_efficiency * direction_efficiency * throttle_amount * throttle_sign
 
+func _get_rudder_flow_sign(forward_speed: float) -> float:
+	if forward_speed < -rudder_reverse_speed_threshold:
+		return -1.0
+	if forward_speed > rudder_reverse_speed_threshold:
+		return 1.0
+	return -1.0 if current_throttle < 0.0 else 1.0
+
 func _apply_hull_resistance(forward: Vector3, right: Vector3) -> void:
 	if not submerged:
 		return
@@ -106,11 +120,51 @@ func _apply_hull_resistance(forward: Vector3, right: Vector3) -> void:
 	var lateral_drag_force: Vector3 = -right * lateral_speed * absf(lateral_speed) * hull_lateral_drag
 	apply_central_force(forward_drag_force + lateral_drag_force)
 
-func _apply_soft_damping(delta: float) -> void:
+func _apply_bow_wave_impact_resistance(forward: Vector3, forward_speed: float) -> void:
+	if not submerged or forward_speed <= 0.0 or bow_wave_impact_drag <= 0.0:
+		return
+
+	var bow_submerged_ratio: float = _get_bow_submerged_ratio()
+	if bow_submerged_ratio <= 0.0:
+		return
+
+	var impact_force: Vector3 = -forward * forward_speed * absf(forward_speed) * bow_wave_impact_drag * bow_submerged_ratio
+	var impact_offset: Vector3 = global_transform.basis * bow_wave_impact_local_offset
+	apply_force(impact_force, impact_offset)
+
+func _get_bow_submerged_ratio() -> float:
+	var total_ratio: float = 0.0
+	var bow_sensor_count: int = 0
+
+	for sensor in _buoyancy_sensors:
+		if sensor.position.z > bow_wave_impact_z:
+			continue
+
+		var submerged_depth: float = clampf(-sensor.get_water_depth(), 0.0, sensor.height)
+		total_ratio += submerged_depth / sensor.height
+		bow_sensor_count += 1
+
+	if bow_sensor_count == 0:
+		return 0.0
+
+	return total_ratio / float(bow_sensor_count)
+
+func _apply_angular_water_damping(delta: float) -> void:
 	if not submerged:
 		return
-	linear_velocity = linear_velocity.lerp(Vector3.ZERO, linear_water_damping * delta)
-	angular_velocity = angular_velocity.lerp(Vector3.ZERO, angular_water_damping * delta)
+
+	var local_angular_velocity: Vector3 = global_transform.basis.inverse() * angular_velocity
+
+	if roll_pitch_water_damping > 0.0:
+		var roll_pitch_damping: float = clampf(roll_pitch_water_damping * delta, 0.0, 1.0)
+		local_angular_velocity.x = lerpf(local_angular_velocity.x, 0.0, roll_pitch_damping)
+		local_angular_velocity.z = lerpf(local_angular_velocity.z, 0.0, roll_pitch_damping)
+
+	if yaw_water_damping > 0.0:
+		var yaw_damping: float = clampf(yaw_water_damping * delta, 0.0, 1.0)
+		local_angular_velocity.y = lerpf(local_angular_velocity.y, 0.0, yaw_damping)
+
+	angular_velocity = global_transform.basis * local_angular_velocity
 
 func _update_camera() -> void:
 	if chase_camera == null or look_target == null:

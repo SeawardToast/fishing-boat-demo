@@ -45,8 +45,6 @@ mesh = SubResource("PlaneMesh_editor_water")
 
 [node name="FishingBoat" parent="." instance=ExtResource("2_boat")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
-buoyancy_multiplier = 2000.0
-buoyancy_power = 3.0
 
 [node name="Buoys" type="Node3D" parent="."]
 
